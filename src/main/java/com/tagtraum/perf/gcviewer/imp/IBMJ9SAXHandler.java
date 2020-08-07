@@ -6,20 +6,21 @@
  */
 package com.tagtraum.perf.gcviewer.imp;
 
-import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
-import com.tagtraum.perf.gcviewer.model.GCEvent;
-import com.tagtraum.perf.gcviewer.model.GCModel;
-
-import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
-
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.logging.Logger;
+
+import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
+import com.tagtraum.perf.gcviewer.model.GCEvent;
+import com.tagtraum.perf.gcviewer.model.GCModel;
+import com.tagtraum.perf.gcviewer.model.GCResource;
+import com.tagtraum.perf.gcviewer.util.NumberParser;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Simple (only for the -Xgcpolicy:optthruput output) IBMJ9 verbose GC reader.
@@ -29,18 +30,23 @@ import java.util.logging.Logger;
  */
 public class IBMJ9SAXHandler extends DefaultHandler {
     private GCModel model;
+    private GCResource gcResource;
     private DateFormat cycleStartGCFormat5 = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy", Locale.US);
     private DateFormat cycleStartGCFormat6 = new SimpleDateFormat("MMM dd HH:mm:ss yyyy", Locale.US);
     private DateFormat current = cycleStartGCFormat5;
     protected AF currentAF;
     int currentTenured = 0; // 0 = none, 1=pre, 2=mid, 3=end
-    private static Logger LOG = Logger.getLogger(IBMJ9SAXHandler.class.getName());
     private Date begin = null;
 
-    public IBMJ9SAXHandler(GCModel model) {
+    public IBMJ9SAXHandler(GCResource gcResource, GCModel model) {
+        this.gcResource = gcResource;
         this.model = model;
     }
 
+    private Logger getLogger() {
+        return gcResource.getLogger();
+    }
+    
     protected Date parseTime(String ts) throws ParseException {
         try {
             return current.parse(ts);
@@ -89,14 +95,14 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                     // String pauseStr = attrs.getValue("exclusiveaccessms");
                     // double pause = -1D;
                     // if(pauseStr != null){
-                    // pause = Double.parseDouble(pauseStr);
+                    // pause = NumberParser.parseDouble(pauseStr);
                     // currentAF.totalTime = pause/1000;
                     // }
 
                     String totalStr = attrs.getValue("totalms");
                     double total = -1D;
                     if (totalStr != null) {
-                        total = Double.parseDouble(totalStr);
+                        total = NumberParser.parseDouble(totalStr);
                         currentAF.totalTime = total / 1000;
                     }
 
@@ -109,13 +115,13 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                     String markStr = attrs.getValue("mark");
                     double mark = -1D;
                     if (markStr != null) {
-                        mark = Double.parseDouble(markStr);
+                        mark = NumberParser.parseDouble(markStr);
                         currentAF.gcTimeMark = mark;
                     }
                     String sweepStr = attrs.getValue("sweep");
                     double sweep = -1D;
                     if (sweepStr != null) {
-                        mark = Double.parseDouble(sweepStr);
+                        mark = NumberParser.parseDouble(sweepStr);
                         currentAF.gcTimeSweep = sweep;
                     }
                 }
@@ -146,7 +152,7 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                         currentAF.afterTotalBytes = total;
                     } 
                     else {
-                        LOG.warning("currentTenured is > 3!");
+                        getLogger().warning("currentTenured is > 3!");
                     }
                 }
                 else if ("soa".equals(qName)) {
@@ -173,7 +179,7 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                         currentAF.afterSOATotalBytes = total;
                     }
                     else {
-                        LOG.warning("currentTenured is > 3!");
+                        getLogger().warning("currentTenured is > 3!");
                     }
                 } 
                 else if ("loa".equals(qName)) {
@@ -200,7 +206,7 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                         currentAF.afterLOATotalBytes = total;
                     } 
                     else {
-                        LOG.warning("currentTenured is > 3!");
+                        getLogger().warning("currentTenured is > 3!");
                     }
                 }
             }
@@ -219,10 +225,10 @@ public class IBMJ9SAXHandler extends DefaultHandler {
             if (currentAF != null) {
                 GCEvent event = new GCEvent();
                 if (!"tenured".equals(currentAF.type)) {
-                    LOG.warning("Unhandled AF type: " + currentAF.type);
+                    getLogger().warning("Unhandled AF type: " + currentAF.type);
                 }
                 if (!"global".equals(currentAF.gcType)) {
-                    LOG.warning("Different GC type: " + currentAF.gcType);
+                    getLogger().warning("Different GC type: " + currentAF.gcType);
                 } 
                 else {
                     event.setType(AbstractGCEvent.Type.FULL_GC);
@@ -256,7 +262,6 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                     final GCEvent detailEvent = new GCEvent();
                     detailEvent.setTimestamp(currentAF.elapsedTime);
                     detailEvent.setType(AbstractGCEvent.Type.PS_YOUNG_GEN);
-                    detailEvent.setTenuredDetail(true);
                     detailEvent.setPreUsed(currentAF.getPreUsedSoaInKb());
                     detailEvent.setPostUsed(currentAF.getPostUsedSoaInKb());
                     detailEvent.setTotal(currentAF.getTotalSoaInKb());
@@ -271,7 +276,6 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                     final GCEvent detailEvent = new GCEvent();
                     detailEvent.setTimestamp(currentAF.elapsedTime);
                     detailEvent.setType(AbstractGCEvent.Type.PS_OLD_GEN);
-                    detailEvent.setTenuredDetail(true);
                     detailEvent.setPreUsed(currentAF.getPreUsedLoaInKb());
                     detailEvent.setPostUsed(currentAF.getPostUsedLoaInKb());
                     detailEvent.setTotal(currentAF.getTotalLoaInKb());
@@ -283,7 +287,7 @@ public class IBMJ9SAXHandler extends DefaultHandler {
                 currentAF = null;
             } 
             else {
-                LOG.warning("Found end <af> tag with no begin tag");
+                getLogger().warning("Found end <af> tag with no begin tag");
             }
 
         }

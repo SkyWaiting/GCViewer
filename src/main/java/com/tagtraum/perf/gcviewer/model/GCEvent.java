@@ -1,8 +1,9 @@
 package com.tagtraum.perf.gcviewer.model;
 
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.Iterator;
+import java.util.Objects;
 
+import com.tagtraum.perf.gcviewer.util.DateHelper;
 
 /**
  * The GCEvent is the type of event that contains memory (preused, postused, total) and 
@@ -15,40 +16,75 @@ import java.util.TreeMap;
  */
 public class GCEvent extends AbstractGCEvent<GCEvent> {
 
-    /** Used before GC in KB */
-    private int preUsed;
-    
-    /** Used after GC in KB */
-    private int postUsed;
-    
-    /** Capacity in KB */
-    private int total;
-    
-    /** Pause in seconds */
-    private double pause;
-    
-    /** the generationMap contains all detail events and additionally the inferred events as well. */
-    private Map<Generation, GCEvent> generationMap = new TreeMap<Generation, GCEvent>();
+    /** store references to related/inferred events */
+    private GCEvent young;
+    private GCEvent tenured;
+    private GCEvent perm;
     
     public GCEvent() {
     }
 
     public GCEvent(double timestamp, int preUsed, int postUsed, int total, double pause, Type type) {
         this.setTimestamp(timestamp);
-        this.preUsed = preUsed;
-        this.postUsed = postUsed;
-        this.total = total;
-        this.pause = pause;
+        this.setPreUsed(preUsed);
+        this.setPostUsed(postUsed);
+        this.setTotal(total);
+        this.setPause(pause);
         this.setType(type);
     }
 
     @Override
     public void add(GCEvent event) {
         super.add(event);
-        
-        generationMap.put(event.getExtendedType().getGeneration(), event);
+
+        setReferencedEvent(event);
     }
-    
+
+    private void setReferencedEvent(GCEvent event) {
+        switch (event.getExtendedType().getGeneration()) {
+            case YOUNG:
+                young = young == null ? event : young.cloneAndMerge(event);
+                break;
+            case TENURED:
+                tenured = tenured == null ? event : tenured.cloneAndMerge(event);
+                break;
+            case PERM:
+                perm = perm == null ? event : perm.cloneAndMerge(event);
+                break;
+            // ALL and OTHER are never read
+            case ALL:
+                break;
+            case OTHER:
+                break;
+        }
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        GCEvent[] events = {young, tenured, perm};
+        young = null;
+        tenured = null;
+        perm = null;
+
+        GCEvent clonedEvent = (GCEvent)super.clone();
+
+        Iterator<GCEvent> eventIterator = clonedEvent.details();
+        while (eventIterator.hasNext()) {
+            clonedEvent.setReferencedEvent(eventIterator.next());
+        }
+
+        young = events[0];
+        tenured = events[1];
+        perm = events[2];
+
+        return clonedEvent;
+    }
+
+    @Override
+    public GCEvent cloneAndMerge(AbstractGCEvent<GCEvent> otherEvent) {
+        return (GCEvent)super.cloneAndMerge(otherEvent);
+    }
+
     /**
      * Returns information on young generation. If it was not present in the gc log, but 
      * tenured was, it is inferred from there (with -XX:+PrintGCDetails). Otherwise it is 
@@ -57,18 +93,14 @@ public class GCEvent extends AbstractGCEvent<GCEvent> {
      * @return Information on young generation if possible, <code>null</code> otherwise.
      */
     public GCEvent getYoung() {
-        GCEvent young = generationMap.get(Generation.YOUNG);
         if (young == null) {
-            GCEvent tenured = generationMap.get(Generation.TENURED);
             if (tenured != null) {
                 young = new GCEvent();
                 young.setTimestamp(tenured.getTimestamp());
-                young.setPreUsed(preUsed - tenured.getPreUsed());
-                young.setPostUsed(postUsed - tenured.getPostUsed());
-                young.setTotal(total - tenured.getTotal());
+                young.setPreUsed(getPreUsed() - tenured.getPreUsed());
+                young.setPostUsed(getPostUsed() - tenured.getPostUsed());
+                young.setTotal(getTotal() - tenured.getTotal());
                 young.setPause(tenured.getPause());
-                
-                generationMap.put(Generation.YOUNG, young);
             }
         }
         
@@ -83,18 +115,14 @@ public class GCEvent extends AbstractGCEvent<GCEvent> {
      * @return Information on young generation if possible, <code>null</code> otherwise.
      */
     public GCEvent getTenured() {
-        GCEvent tenured = generationMap.get(Generation.TENURED);
         if (tenured == null) {
-            GCEvent young = generationMap.get(Generation.YOUNG);
             if (young != null) {
                 tenured = new GCEvent();
                 tenured.setTimestamp(young.getTimestamp());
-                tenured.setPreUsed(preUsed - young.getPreUsed());
-                tenured.setPostUsed(postUsed - young.getPostUsed());
-                tenured.setTotal(total - young.getTotal());
+                tenured.setPreUsed(getPreUsed() - young.getPreUsed());
+                tenured.setPostUsed(getPostUsed() - young.getPostUsed());
+                tenured.setTotal(getTotal() - young.getTotal());
                 tenured.setPause(young.getPause());
-                
-                generationMap.put(Generation.TENURED, tenured);
             }
         }
         
@@ -108,40 +136,21 @@ public class GCEvent extends AbstractGCEvent<GCEvent> {
      * @return Information on perm generation or <code>null</code> if not present.
      */
     public GCEvent getPerm() {
-        return generationMap.get(Generation.PERM);
-    }
-    
-    public void setPreUsed(int preUsed) {
-        this.preUsed = preUsed;
-    }
-
-    public void setPostUsed(int postUsed) {
-        this.postUsed = postUsed;
-    }
-
-    public void setTotal(int total) {
-        this.total = total;
-    }
-
-    public int getPreUsed() {
-        return preUsed;
-    }
-
-    public int getPostUsed() {
-        return postUsed;
-    }
-
-    public int getTotal() {
-        return total;
+        return perm;
     }
 
     public void toStringBuffer(StringBuffer sb) {
-        sb.append(getTimestamp());
-        sb.append(": [");
-        sb.append(getExtendedType().getName());
+        if (getDatestamp() != null) {
+            sb.append("[").append(DateHelper.formatDate(getDatestamp())).append("]");
+        }
+        sb.append("[").append(getTimestamp()).append("]");
+        if (getNumber() >= 0) {
+            sb.append(" GC(").append(getNumber()).append(")");
+        }
+        sb.append(" [").append(getExtendedType() != null ? getExtendedType().getName() : ExtendedType.UNDEFINED);
         if (details != null) {
             sb.append(' ');
-            for (GCEvent event : details) {
+            for (AbstractGCEvent event : details) {
                 event.toStringBuffer(sb);
             }
             sb.append(' ');
@@ -149,22 +158,32 @@ public class GCEvent extends AbstractGCEvent<GCEvent> {
         else {
             sb.append(": ");
         }
-        sb.append(preUsed);
+        sb.append(getPreUsed());
         sb.append("K->");
-        sb.append(postUsed);
+        sb.append(getPostUsed());
         sb.append("K(");
-        sb.append(total);
+        sb.append(getTotal());
         sb.append("K), ");
-        sb.append(pause);
+        sb.append(getPause());
         sb.append(" secs]");
     }
-    
-    public void setPause(double pause) {
-        this.pause = pause;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof GCEvent))
+            return false;
+        if (!super.equals(o))
+            return false;
+        GCEvent gcEvent = (GCEvent) o;
+        return getPreUsed() == gcEvent.getPreUsed() &&
+               getPostUsed() == gcEvent.getPostUsed() &&
+               getTotal() == gcEvent.getTotal();
     }
 
-    public double getPause() {
-        return pause;
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), getPreUsed(), getPostUsed(), getTotal());
     }
-
 }

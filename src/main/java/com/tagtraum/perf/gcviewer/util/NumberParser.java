@@ -124,14 +124,16 @@ public class NumberParser {
         if (length > 0) {
             if (s.charAt(offset) == '-') {
                 // shortcut for ints
-                if (length <= MAX_NEGATIVE_INTEGER_CHARS) return parseInt(s, offset, length);
+                // => shortcut doesn't work!! (e.g. -6442450944 is too big for an int, but has not too many characters)
+                // if (length <= MAX_NEGATIVE_INTEGER_CHARS) return parseInt(s, offset, length);
                 if (length > MAX_NEGATIVE_LONG_CHARS) throw new NumberFormatException(s);
                 negative = true;
                 limit = Long.MIN_VALUE;
                 i++;
             } else {
                 // shortcut for ints
-                if (length <= MAX_POSITIVE_INTEGER_CHARS) return parseInt(s, offset, length);
+                // => shortcut doesn't work!! (e.g. 6442450944 is too big for an int, but has not too many characters)
+                //if (length <= MAX_POSITIVE_INTEGER_CHARS) return parseInt(s, offset, length);
                 if (length > MAX_POSITIVE_LONG_CHARS) throw new NumberFormatException(s);
                 limit = -Long.MAX_VALUE;
             }
@@ -172,14 +174,16 @@ public class NumberParser {
         if (length > 0) {
             if (cb[offset] == '-') {
                 // shortcut for ints
-                if (length <= MAX_NEGATIVE_INTEGER_CHARS) return parseInt(cb, offset, length);
+                // => shortcut doesn't work!! (e.g. -6442450944 is too big for an int, but has not too many characters)
+                //if (length <= MAX_NEGATIVE_INTEGER_CHARS) return parseInt(cb, offset, length);
                 if (length > MAX_NEGATIVE_LONG_CHARS) throw new NumberFormatException(new String(cb, offset, length));
                 negative = true;
                 limit = Long.MIN_VALUE;
                 i++;
             } else {
                 // shortcut for ints
-                if (length <= MAX_POSITIVE_INTEGER_CHARS) return parseInt(cb, offset, length);
+                // => shortcut doesn't work!! (e.g. 6442450944 is too big for an int, but has not too many characters)
+                //if (length <= MAX_POSITIVE_INTEGER_CHARS) return parseInt(cb, offset, length);
                 if (length > MAX_POSITIVE_LONG_CHARS) throw new NumberFormatException(new String(cb, offset, length));
                 limit = -Long.MAX_VALUE;
             }
@@ -213,6 +217,13 @@ public class NumberParser {
         // This logic is factored out so as to allow future optimisations. For
         // example, we might want to make some simplifying assumptions about the
         // kind of doubles present in GC logs.
-        return Double.parseDouble(s.substring(offset, offset + length));
+        
+        return parseDouble(s.substring(offset, offset + length));
+    }
+    
+    public static double parseDouble (String s) {
+        // replace "," with "." because doubles may only contain "."
+        // some localized gc logs contain "," in pauses
+        return Double.parseDouble(s.replace(",", "."));
     }
 }

@@ -6,9 +6,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.junit.Test;
-
+import com.tagtraum.perf.gcviewer.UnittestHelper;
+import com.tagtraum.perf.gcviewer.UnittestHelper.FOLDER;
 import com.tagtraum.perf.gcviewer.model.GCModel;
+import com.tagtraum.perf.gcviewer.model.GcResourceFile;
+import org.junit.Test;
 
 /**
  * Tests some cases for java 1.5 (using DataReaderSun1_6_0).
@@ -20,7 +22,7 @@ import com.tagtraum.perf.gcviewer.model.GCModel;
 public class TestDataReaderSun1_5_0 {
 
     private InputStream getInputStream(String fileName) throws IOException {
-        return UnittestHelper.getResourceAsStream(UnittestHelper.FOLDER_OPENJDK, fileName);
+        return UnittestHelper.getResourceAsStream(FOLDER.OPENJDK, fileName);
     }
     
     /**
@@ -28,8 +30,9 @@ public class TestDataReaderSun1_5_0 {
      */
     @Test
     public void testAdaptiveSizePolicy() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0AdaptiveSizePolicy.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0AdaptiveSizePolicy.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
         
         assertEquals("number of events", 6, model.getPause().getN());
@@ -42,12 +45,13 @@ public class TestDataReaderSun1_5_0 {
     
     @Test
     public void testCMSPrintGCDetails() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0CMS_PrintGCDetails.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0CMS_PrintGCDetails.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
         
         assertEquals("size", 515, model.size());
-        assertEquals("throughput", 88.28044896, model.getThroughput(), 0.00000001);
+        assertEquals("throughput", 88.2823289184, model.getThroughput(), 0.00000001);
         assertEquals("sum of pauses", model.getPause().getSum(), model.getFullGCPause().getSum() + model.getGCPause().getSum(), 0.0000001);
         assertEquals("total pause", 9.1337492, model.getPause().getSum(), 0.0000001);
         assertEquals("full gc pause", 7.4672903, model.getFullGCPause().getSum(), 0.00000001);
@@ -55,8 +59,9 @@ public class TestDataReaderSun1_5_0 {
 
     @Test
     public void testParallelOldGC() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0ParallelOldGC.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0ParallelOldGC.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
         
         assertEquals("size", 1, model.size());
@@ -65,12 +70,13 @@ public class TestDataReaderSun1_5_0 {
 
     @Test
     public void testCMSIncrementalPacing() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0CMS_IncrementalPacing.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0CMS_IncrementalPacing.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
 
         assertEquals("size", 810, model.size());
-        assertEquals("throughput", 94.17869828, model.getThroughput(), 0.00000001);
+        assertEquals("throughput", 94.181240109114, model.getThroughput(), 0.00000001);
         assertEquals("total gc pause", 2.3410947, model.getPause().getSum(), 0.000000001);
         assertEquals("gc pause", 2.3410947, model.getGCPause().getSum(), 0.000000001);
         assertEquals("full gc paus", 0.0, model.getFullGCPause().getSum(), 0.01);
@@ -78,23 +84,25 @@ public class TestDataReaderSun1_5_0 {
 
     @Test
     public void testPromotionFailure() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0PromotionFailure.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0PromotionFailure.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
         
         assertEquals("size", 6, model.size());
-        assertEquals("throughput", 98.0932228588, model.getThroughput(), 0.00000001);
+        assertEquals("throughput", 98.0937624615, model.getThroughput(), 0.00000001);
         assertEquals("gc pause", 8.413616, model.getPause().getSum(), 0.000001);
     }
 
     @Test
     public void testCMSConcurrentModeFailure() throws Exception {
-        final InputStream in = getInputStream("SampleSun1_5_0ConcurrentModeFailure.txt");
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        String fileName = "SampleSun1_5_0ConcurrentModeFailure.txt";
+        final InputStream in = getInputStream(fileName);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile(fileName), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
         
         assertEquals("size", 3417, model.size());
-        assertEquals("throughput", 78.5579711577, model.getThroughput(), 0.00000001);
+        assertEquals("throughput", 78.558339113, model.getThroughput(), 0.00000001);
         assertEquals("gc pause", 181.8116798, model.getPause().getSum(), 0.000000001);
     }
     
@@ -106,7 +114,7 @@ public class TestDataReaderSun1_5_0 {
                  "\n0.902: [Rescan (parallel) , 0.0310561 secs]0.933: [weak refs processing, 0.0000152 secs] [1 CMS-remark: 374455K(507904K)] 374455K(524224K), 0.0624207 secs]")
                         .getBytes());
 
-        final DataReader reader = new DataReaderSun1_6_0(in, GcLogType.SUN1_5);
+        final DataReader reader = new DataReaderSun1_6_0(new GcResourceFile("byteArray"), in, GcLogType.SUN1_5);
         GCModel model = reader.read();
 
         assertEquals("gc count", 2, model.size());

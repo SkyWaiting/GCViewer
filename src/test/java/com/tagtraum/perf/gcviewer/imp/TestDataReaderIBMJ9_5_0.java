@@ -4,12 +4,15 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 
-import org.junit.Test;
-
+import com.tagtraum.perf.gcviewer.UnittestHelper;
+import com.tagtraum.perf.gcviewer.UnittestHelper.FOLDER;
+import com.tagtraum.perf.gcviewer.model.AbstractGCEvent.Type;
 import com.tagtraum.perf.gcviewer.model.GCEvent;
 import com.tagtraum.perf.gcviewer.model.GCModel;
-import com.tagtraum.perf.gcviewer.model.AbstractGCEvent.Type;
+import com.tagtraum.perf.gcviewer.model.GcResourceFile;
+import org.junit.Test;
 
 /**
  * Tests the implementation of {@link TestDataReaderIBMJ9_5_0} and {@link IBMJ9SAXHandler}. 
@@ -20,13 +23,16 @@ import com.tagtraum.perf.gcviewer.model.AbstractGCEvent.Type;
 public class TestDataReaderIBMJ9_5_0 {
 
     private InputStream getInputStream(String filename) throws IOException {
-        return UnittestHelper.getResourceAsStream(UnittestHelper.FOLDER_IBM, filename);
+        return UnittestHelper.getResourceAsStream(FOLDER.IBM, filename);
+    }
+    
+    private DataReader getDataReader(String fileName) throws UnsupportedEncodingException, IOException {
+        return new DataReaderIBM_J9_5_0(new GcResourceFile(fileName), getInputStream(fileName));
     }
     
     @Test
     public void afTenuredGlobal() throws Exception {
-        final InputStream in = getInputStream("SampleIBMJ9_5_0af-global-200811_07.txt");
-        final DataReader reader = new DataReaderIBM_J9_5_0(in);
+        final DataReader reader = getDataReader("SampleIBMJ9_5_0af-global-200811_07.txt");
         GCModel model = reader.read();
 
         assertEquals("count", 1, model.size());
@@ -43,8 +49,7 @@ public class TestDataReaderIBMJ9_5_0 {
     
     @Test
     public void afTenuredGlobal_20090417_AA() throws Exception {
-        final InputStream in = getInputStream("SampleIBMJ9_5_0af-global-20090417_AA.txt");
-        final DataReader reader = new DataReaderIBM_J9_5_0(in);
+        final DataReader reader = getDataReader("SampleIBMJ9_5_0af-global-20090417_AA.txt");
         GCModel model = reader.read();
 
         assertEquals("count", 1, model.size());

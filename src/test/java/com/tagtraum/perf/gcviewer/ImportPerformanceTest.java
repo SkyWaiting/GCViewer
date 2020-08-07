@@ -1,11 +1,12 @@
 package com.tagtraum.perf.gcviewer;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-
 import com.tagtraum.perf.gcviewer.imp.DataReader;
 import com.tagtraum.perf.gcviewer.imp.DataReaderFactory;
 import com.tagtraum.perf.gcviewer.math.IntData;
+import com.tagtraum.perf.gcviewer.model.GcResourceFile;
+
+import java.io.FileInputStream;
+import java.io.IOException;
 
 /**
  * Created by IntelliJ IDEA.
@@ -19,7 +20,8 @@ public class ImportPerformanceTest {
         IntData performanceData = new IntData();
         for (int i=0; i<10; i++) {
             long start = System.currentTimeMillis();
-            DataReader dataReader = new DataReaderFactory().getDataReader(new FileInputStream(args[0]));
+            DataReader dataReader = new DataReaderFactory().getDataReader(new GcResourceFile(args[0]),
+                    new FileInputStream(args[0]));
             dataReader.read();
             performanceData.add((int)(System.currentTimeMillis() - start));
         }

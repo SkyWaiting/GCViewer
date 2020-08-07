@@ -1,15 +1,15 @@
 package com.tagtraum.perf.gcviewer.imp;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.util.logging.Level;
+
 import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
 import com.tagtraum.perf.gcviewer.model.GCEvent;
 import com.tagtraum.perf.gcviewer.model.GCModel;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.util.logging.Logger;
-import java.util.logging.Level;
+import com.tagtraum.perf.gcviewer.model.GCResource;
+import com.tagtraum.perf.gcviewer.util.NumberParser;
 
 /**
  * Parses -verbose:gc output from IBM JDK 1.3.0.
@@ -18,29 +18,25 @@ import java.util.logging.Level;
  * Time: 5:15:44 PM
  * @author <a href="mailto:hs@tagtraum.com">Hendrik Schreiber</a>
  */
-public class DataReaderIBM1_3_0 implements DataReader {
+public class DataReaderIBM1_3_0 extends AbstractDataReader {
 
-    private static Logger LOG = Logger.getLogger(DataReaderIBM1_3_0.class.getName());
-
-    private LineNumberReader in;
-
-    public DataReaderIBM1_3_0(InputStream in) {
-        this.in = new LineNumberReader(new InputStreamReader(in));
+    public DataReaderIBM1_3_0(GCResource gcResource, InputStream in) throws UnsupportedEncodingException {
+        super(gcResource, in);
     }
 
     public GCModel read() throws IOException {
-        if (LOG.isLoggable(Level.INFO)) LOG.info("Reading IBM 1.3.0 format...");
+        if (getLogger().isLoggable(Level.INFO)) getLogger().info("Reading IBM 1.3.0 format...");
         try {
-            GCModel model = new GCModel(true);
+            GCModel model = new GCModel();
             model.setFormat(GCModel.Format.IBM_VERBOSE_GC);
             int state = 0;
             String line = null;
             AbstractGCEvent<GCEvent> lastEvent = new GCEvent();
             GCEvent event = null;
-            while ((line = in.readLine()) != null) {
+            while ((line = in.readLine()) != null && shouldContinue()) {
                 String trimmedLine = line.trim();
                 if ((!trimmedLine.equals("")) && (!trimmedLine.startsWith("<GC: ")) && (!(trimmedLine.startsWith("<") && trimmedLine.endsWith(">")))) {
-                    if (LOG.isLoggable(Level.WARNING)) LOG.warning("Malformed line (" + in.getLineNumber() + "): " + line);
+                    if (getLogger().isLoggable(Level.WARNING)) getLogger().warning("Malformed line (" + in.getLineNumber() + "): " + line);
                     state = 0;
                 }
                 switch (state) {
@@ -83,20 +79,16 @@ public class DataReaderIBM1_3_0 implements DataReader {
                 }
             }
             return model;
-        } finally {
-            if (in != null)
-                try {
-                    in.close();
-                } catch (IOException ioe) {
-                }
-            if (LOG.isLoggable(Level.INFO)) LOG.info("Reading done.");
+        }
+        finally {
+            if (getLogger().isLoggable(Level.INFO)) getLogger().info("Reading done.");
         }
     }
 
     private double parseTimeSinceLastAF(String line) {
         int start = line.indexOf(',') + 2;
         int end = line.indexOf(' ', start);
-        return Double.parseDouble(line.substring(start, end)) / 1000.0d;
+        return NumberParser.parseDouble(line.substring(start, end)) / 1000.0d;
     }
 
     private int parsePreUsed(String line) {
@@ -133,6 +125,6 @@ public class DataReaderIBM1_3_0 implements DataReader {
     private double parsePause(String line) {
         int start = line.indexOf("in ") + 3;
         int end = line.indexOf(' ', start);
-        return Double.parseDouble(line.substring(start, end)) / 1000.0d;
+        return NumberParser.parseDouble(line.substring(start, end)) / 1000.0d;
     }
 }

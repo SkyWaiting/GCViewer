@@ -1,19 +1,19 @@
 package com.tagtraum.perf.gcviewer.imp;
 
-import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
-import com.tagtraum.perf.gcviewer.model.GCEvent;
-import com.tagtraum.perf.gcviewer.model.GCModel;
-
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
+import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+
+import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
+import com.tagtraum.perf.gcviewer.model.GCEvent;
+import com.tagtraum.perf.gcviewer.model.GCModel;
+import com.tagtraum.perf.gcviewer.model.GCResource;
+import com.tagtraum.perf.gcviewer.util.NumberParser;
 
 /**
  * Parses -verbose:gc output from IBM JDK 1.3.0.
@@ -22,21 +22,18 @@ import java.util.logging.Level;
  * Time: 5:15:44 PM
  * @author <a href="mailto:hs@tagtraum.com">Hendrik Schreiber</a>
  */
-public class DataReaderIBM1_3_1 implements DataReader {
+public class DataReaderIBM1_3_1 extends AbstractDataReader {
 
-    private static Logger LOG = Logger.getLogger(DataReaderIBM1_3_1.class.getName());
-    
-    private LineNumberReader in;
     private DateFormat cycleStartGCFormat;
 
-    public DataReaderIBM1_3_1(final InputStream in) {
-        this.in = new LineNumberReader(new InputStreamReader(in));
+    public DataReaderIBM1_3_1(GCResource gcResource, InputStream in) throws UnsupportedEncodingException {
+        super(gcResource, in);
     }
 
     public GCModel read() throws IOException {
-        if (LOG.isLoggable(Level.INFO)) LOG.info("Reading IBM 1.3.1 format...");
+        if (getLogger().isLoggable(Level.INFO)) getLogger().info("Reading IBM 1.3.1 format...");
         try {
-            final GCModel model = new GCModel(true);
+            final GCModel model = new GCModel();
             model.setFormat(GCModel.Format.IBM_VERBOSE_GC);
             int state = 0;
             String line = null;
@@ -44,7 +41,7 @@ public class DataReaderIBM1_3_1 implements DataReader {
             GCEvent event = null;
             long basetime = 0;
             cycleStartGCFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy", Locale.US);
-            while ((line = in.readLine()) != null) {
+            while ((line = in.readLine()) != null && shouldContinue()) {
                 final String trimmedLine = line.trim();
                 if (!"".equals(trimmedLine) && !trimmedLine.startsWith("<GC: ") && !trimmedLine.startsWith("<")) {
                     System.err.println("Malformed line (" + in.getLineNumber() + "): " + line);
@@ -67,7 +64,8 @@ public class DataReaderIBM1_3_1 implements DataReader {
                             event.setTimestamp((time - basetime)/1000.0d);
                             state++;
                             break;
-                        } else if (line.indexOf("managing allocation failure, action=3") != -1) {
+                        }
+                        else if (line.indexOf("managing allocation failure, action=3") != -1) {
                             event = new GCEvent();
                             event.setType(AbstractGCEvent.Type.FULL_GC);
                             event.setTimestamp(lastEvent.getTimestamp() + lastEvent.getPause());
@@ -111,13 +109,9 @@ public class DataReaderIBM1_3_1 implements DataReader {
             }
             //System.err.println(model);
             return model;
-        } finally {
-            if (in != null)
-                try {
-                    in.close();
-                } catch (IOException ioe) {
-                }
-            if (LOG.isLoggable(Level.INFO)) LOG.info("Done reading.");
+        }
+        finally {
+            if (getLogger().isLoggable(Level.INFO)) getLogger().info("Done reading.");
         }
     }
 
@@ -126,7 +120,8 @@ public class DataReaderIBM1_3_1 implements DataReader {
             final int idx = line.indexOf("GC cycle started ");
             final Date date = cycleStartGCFormat.parse(line.substring(idx + "GC cycle started ".length()));
             return date.getTime();
-        } catch (java.text.ParseException e) {
+        }
+        catch (java.text.ParseException e) {
             throw new com.tagtraum.perf.gcviewer.imp.ParseException(e.toString());
         }
     }
@@ -134,7 +129,7 @@ public class DataReaderIBM1_3_1 implements DataReader {
     private double parseTimeSinceLastAF(final String line) {
         final int start = line.indexOf(',') + 2;
         final int end = line.indexOf(' ', start);
-        return Double.parseDouble(line.substring(start, end)) / 1000.0d;
+        return NumberParser.parseDouble(line.substring(start, end)) / 1000.0d;
     }
 
     private int parsePreUsed(final String line) {
@@ -182,6 +177,6 @@ public class DataReaderIBM1_3_1 implements DataReader {
     private double parsePause(final String line) {
         final int start = line.indexOf("in ") + 3;
         final int end = line.indexOf(' ', start);
-        return Double.parseDouble(line.substring(start, end)) / 1000.0d;
+        return NumberParser.parseDouble(line.substring(start, end)) / 1000.0d;
     }
 }

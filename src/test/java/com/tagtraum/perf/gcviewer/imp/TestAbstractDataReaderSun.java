@@ -1,19 +1,24 @@
 package com.tagtraum.perf.gcviewer.imp;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-
-import org.junit.Before;
-import org.junit.Test;
+import java.util.Arrays;
+import java.util.List;
 
 import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
 import com.tagtraum.perf.gcviewer.model.GCEvent;
 import com.tagtraum.perf.gcviewer.model.GCModel;
+import com.tagtraum.perf.gcviewer.model.GCResource;
+import com.tagtraum.perf.gcviewer.model.GcResourceFile;
 import com.tagtraum.perf.gcviewer.util.ParseInformation;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestAbstractDataReaderSun {
 
@@ -21,7 +26,7 @@ public class TestAbstractDataReaderSun {
     
     @Before
     public void setUp() throws UnsupportedEncodingException {
-        dataReader = new AbstractDataReaderSunSub(new ByteArrayInputStream(new byte[0]), GcLogType.SUN1_6);
+        dataReader = new AbstractDataReaderSunSub(new GcResourceFile("empty"), new ByteArrayInputStream(new byte[0]), GcLogType.SUN1_6);
     }
     
     /**
@@ -93,6 +98,13 @@ public class TestAbstractDataReaderSun {
         assertEquals("heap before", 121344, event.getPreUsed());
         assertEquals("heap after", 128, event.getPostUsed());
     }
+
+    @Test
+    public void contains() {
+        String line = "0.233: [Concurrent reset, start]\n";
+        List<String> containsStrings = Arrays.asList(", start", "blabla");
+        assertThat("should detect string", dataReader.contains(line, containsStrings, false), is(true));
+    }
     
     /**
      * Subclass of {@link AbstractDataReaderSun} which makes those methods public, I want to test here.
@@ -102,8 +114,8 @@ public class TestAbstractDataReaderSun {
      */
     private class AbstractDataReaderSunSub extends AbstractDataReaderSun {
         
-        public AbstractDataReaderSunSub(InputStream in, GcLogType gcLogType) throws UnsupportedEncodingException {
-            super(in, gcLogType);
+        public AbstractDataReaderSunSub(GCResource gcResource, InputStream in, GcLogType gcLogType) throws UnsupportedEncodingException {
+            super(gcResource, in, gcLogType);
         }
     
         @Override

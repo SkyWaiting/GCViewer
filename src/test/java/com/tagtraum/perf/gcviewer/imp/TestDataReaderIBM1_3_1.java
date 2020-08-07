@@ -4,9 +4,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.InputStream;
 
-import org.junit.Test;
-
+import com.tagtraum.perf.gcviewer.UnittestHelper;
+import com.tagtraum.perf.gcviewer.UnittestHelper.FOLDER;
 import com.tagtraum.perf.gcviewer.model.GCModel;
+import com.tagtraum.perf.gcviewer.model.GcResourceFile;
+import org.junit.Test;
 
 /**
  *
@@ -18,8 +20,9 @@ public class TestDataReaderIBM1_3_1 {
 
     @Test
     public void testParse1() throws Exception {
-        InputStream in = UnittestHelper.getResourceAsStream(UnittestHelper.FOLDER_IBM, "SampleIBM1_3_1.txt");
-        DataReader reader = new DataReaderIBM1_3_1(in);
+        String fileName = "SampleIBM1_3_1.txt";
+        InputStream in = UnittestHelper.getResourceAsStream(FOLDER.IBM, fileName);
+        DataReader reader = new DataReaderIBM1_3_1(new GcResourceFile(fileName), in);
         GCModel model = reader.read();
         
         assertEquals("number of events", 21, model.size());
